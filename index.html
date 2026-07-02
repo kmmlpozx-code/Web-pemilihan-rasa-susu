@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilih Varian Rasa Susu</title>
+    <!-- Tailwind CSS untuk tampilan modern & responsif -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .flavor-card.selected {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">🥛 Pilih Rasa Susumu!</h2>
+        <p class="text-center text-sm text-gray-500 mb-6">Silakan isi nama, nomor absen, dan pilih tepat 2 rasa kesukaanmu.</p>
+
+        <!-- Form Input -->
+        <div class="space-y-4" id="form-container">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                <input type="text" id="nama" class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" placeholder="Masukkan namamu">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nomor Absen</label>
+                <input type="number" id="absen" class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" placeholder="Contoh: 12">
+            </div>
+
+            <!-- Pilihan Rasa -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Pilih 2 Rasa (Wajib 2):</label>
+                <div class="grid grid-cols-2 gap-3" id="flavor-grid">
+                    <div data-flavor="Cokelat" class="flavor-card p-4 border-2 border-gray-200 rounded-xl cursor-pointer text-center font-semibold text-gray-700 transition bg-white">🍫 Cokelat</div>
+                    <div data-flavor="Stroberi" class="flavor-card p-4 border-2 border-gray-200 rounded-xl cursor-pointer text-center font-semibold text-gray-700 transition bg-white">🍓 Stroberi</div>
+                    <div data-flavor="Vanila" class="flavor-card p-4 border-2 border-gray-200 rounded-xl cursor-pointer text-center font-semibold text-gray-700 transition bg-white">🍦 Vanila</div>
+                    <div data-flavor="Melon" class="flavor-card p-4 border-2 border-gray-200 rounded-xl cursor-pointer text-center font-semibold text-gray-700 transition bg-white">🍈 Melon</div>
+                </div>
+            </div>
+
+            <!-- Tombol Simpan -->
+            <button id="btn-simpan" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition text-lg mt-4 shadow-md cursor-pointer">
+                Simpan Pilihan
+            </button>
+        </div>
+
+        <!-- Tampilan Berhasil -->
+        <div id="success-container" class="hidden text-center py-8 space-y-3">
+            <div class="text-5xl">✅</div>
+            <h3 class="text-xl font-bold text-gray-800">Data Berhasil Dikirim!</h3>
+            <p class="text-gray-600">Terima kasih, pilihanmu sudah terkunci dan tidak bisa diubah lagi.</p>
+        </div>
+    </div>
+
+    <script>
+        // GANTI INI dengan URL Aplikasi Web dari Google Apps Script kamu
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQdqgHNsDV4hvlykHcXcUcs5Lf5Il7dNA3k7eCHSmm9_1TTDw-iYU1RcVw54HE7hE/exec"; 
+
+        const selectedFlavors = new Set();
+        const cards = document.querySelectorAll('.flavor-card');
+        const btnSimpan = document.getElementById('btn-simpan');
+
+        // Cek apakah anak ini sudah pernah mengisi di HP ini sebelumnya
+        if (localStorage.getItem('sudahMengisi') === 'true') {
+            document.getElementById('form-container').classList.add('hidden');
+            document.getElementById('success-container').classList.remove('hidden');
+        }
+
+        // Logika memilih rasa (Maksimal dan harus 2)
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const flavor = card.getAttribute('data-flavor');
+                
+                if (selectedFlavors.has(flavor)) {
+                    selectedFlavors.delete(flavor);
+                    card.classList.remove('selected');
+                } else {
+                    if (selectedFlavors.size < 2) {
+                        selectedFlavors.add(flavor);
+                        card.classList.add('selected');
+                    } else {
+                        alert("Kamu hanya boleh memilih tepat 2 rasa susu!");
+                    }
+                }
+            });
+        });
+
+        // Kirim Data saat Tombol ditekan
+        btnSimpan.addEventListener('click', async () => {
+            const nama = document.getElementById('nama').value.trim();
+            const absen = document.getElementById('absen').value.trim();
+
+            if (!nama || !absen) {
+                alert("Mohon isi Nama dan Nomor Absen terlebih dahulu!");
+                return;
+            }
+
+            if (selectedFlavors.size !== 2) {
+                alert("Kamu wajib memilih tepat 2 rasa susu!");
+                return;
+            }
+
+            // Kunci tombol agar tidak diklik dua kali saat loading
+            btnSimpan.disabled = true;
+            btnSimpan.innerText = "Mengirim...";
+
+            const flavorsArray = Array.from(selectedFlavors);
+            const payload = {
+                nama: nama,
+                absen: absen,
+                rasa1: flavorsArray[0],
+                rasa2: flavorsArray[1]
+            };
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+
+                if (result.result === 'success') {
+                    // Kunci agar tidak bisa isi lagi di browser ini
+                    localStorage.setItem('sudahMengisi', 'true');
+                    
+                    // Ubah tampilan menjadi sukses
+                    document.getElementById('form-container').classList.add('hidden');
+                    document.getElementById('success-container').classList.remove('hidden');
+                } else {
+                    alert("Gagal: " + result.message);
+                    btnSimpan.disabled = false;
+                    btnSimpan.innerText = "Simpan Pilihan";
+                }
+            } catch (error) {
+                alert("Terjadi kesalahan jaringan. Coba lagi.");
+                btnSimpan.disabled = false;
+                btnSimpan.innerText = "Simpan Pilihan";
+            }
+        });
+    </script>
+</body>
+</html>
